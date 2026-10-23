@@ -1,4 +1,4 @@
-# Global Search (GLPI 11)
+# Global Search for GLPI
 
 Replaces the top search bar with one search across:
 
@@ -6,6 +6,18 @@ Replaces the top search bar with one search across:
 - Knowledge base: article title and content
 
 Results are grouped by type, newest first, with the matched field and a highlighted snippet.
+
+## Compatibility
+
+One download works on all supported GLPI versions:
+
+| GLPI | Status |
+| --- | --- |
+| 10.0.x | Supported (tested on 10.0.28) |
+| 11.0.x | Supported (tested on 11.0.11) |
+| 12.0.x | Supported (tested on 12.0.0) |
+
+Requires PHP 8.1 or newer.
 
 ## Permissions
 
@@ -20,7 +32,8 @@ Only users with the standard (central) interface get the plugin. Self-service us
 
 ## Install
 
-1. Copy this folder to `<glpi>/plugins/globalsearch`. The folder name must be `globalsearch`.
+1. Download the latest release archive and unpack it into `<glpi>/plugins/`, so the folder is `<glpi>/plugins/globalsearch` (the folder name must be `globalsearch`). Or clone it:
+   `git clone https://github.com/mebessusn/glpi-globalsearch.git globalsearch`
 2. Run `bin/console plugin:install globalsearch` and then `bin/console plugin:activate globalsearch`, or use Setup → Plugins.
 3. Hard-refresh the browser.
 

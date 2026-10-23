@@ -40,6 +40,30 @@ class Searcher
     /** @var string[] */
     private array $terms;
 
+    /** GLPI 10 stores and receives text HTML-encoded and expects SQL-escaped values. */
+    public static function isLegacy(): bool
+    {
+        return version_compare(GLPI_VERSION, '11.0.0', '<');
+    }
+
+    /** Request value as typed by the user (undoes GLPI 10's input sanitizing). */
+    public static function rawInput(string $value): string
+    {
+        if (self::isLegacy() && class_exists('Glpi\\Toolbox\\Sanitizer')) {
+            $value = \Glpi\Toolbox\Sanitizer::unsanitize($value);
+        }
+        return $value;
+    }
+
+    /** Stored DB text as plain text (GLPI 10 stores it HTML-encoded). */
+    private static function stored(string $value): string
+    {
+        if (self::isLegacy() && class_exists('Glpi\\Toolbox\\Sanitizer')) {
+            $value = \Glpi\Toolbox\Sanitizer::decodeHtmlSpecialChars($value);
+        }
+        return $value;
+    }
+
     public function __construct(string $query)
     {
         $this->terms = self::terms($query);
@@ -120,7 +144,7 @@ class Searcher
             if ($parent === false) {
                 continue;
             }
-            $where = $this->matchesAny((string) $row['name']) ? 'title' : 'description';
+            $where = $this->matchesAny(self::stored((string) $row['name'])) ? 'title' : 'description';
             $this->addHit($hits, $parent, $where, (string) $row['content'], (string) $row['date_mod']);
         }
 
@@ -185,7 +209,7 @@ class Searcher
             if (!$kb->getFromDB((int) $row['id']) || !$kb->canViewItem()) {
                 continue; // covers KB visibility targets (users/groups/entities/profiles)
             }
-            $where = $this->matchesAny((string) $row['name']) ? 'title' : 'content';
+            $where = $this->matchesAny(self::stored((string) $row['name'])) ? 'title' : 'content';
             $this->addHit($hits, $kb, $where, (string) $row['answer'], (string) $row['date_mod']);
         }
 
@@ -214,7 +238,7 @@ class Searcher
         $id = (int) $item->getID();
         if (!isset($hits[$id])) {
             $hits[$id] = [
-                'title'   => sprintf('#%d — %s', $id, (string) ($item->fields['name'] ?? '')),
+                'title'   => sprintf('#%d — %s', $id, self::stored((string) ($item->fields['name'] ?? ''))),
                 'url'     => $item::getFormURLWithID($id),
                 'matched' => [],
                 'snippet' => '',
@@ -224,7 +248,7 @@ class Searcher
         $hits[$id]['matched'][$where] = true;
 
         // Prefer a snippet that actually contains a term.
-        $snippet = self::snippet($html, $this->terms);
+        $snippet = self::snippet(self::stored($html), $this->terms);
         if ($hits[$id]['snippet'] === '' || (!$this->matchesAny($hits[$id]['snippet']) && $this->matchesAny($snippet))) {
             $hits[$id]['snippet'] = $snippet;
         }
@@ -248,9 +272,20 @@ class Searcher
      */
     private function likeAll(array $fields): array
     {
+        global $DB;
+
         $and = [];
         foreach ($this->terms as $term) {
-            $value = '%' . addcslashes($term, '%_\\') . '%';
+            $needle = $term;
+            if (self::isLegacy() && class_exists('Glpi\\Toolbox\\Sanitizer')) {
+                // match GLPI 10's HTML-encoded storage
+                $needle = \Glpi\Toolbox\Sanitizer::encodeHtmlSpecialChars($needle);
+            }
+            $value = '%' . addcslashes($needle, '%_\\') . '%';
+            if (self::isLegacy()) {
+                // GLPI 10's query builder does not escape values: do it here.
+                $value = $DB->escape($value);
+            }
             $or = [];
             foreach ($fields as $field) {
                 $or[] = [$field => ['LIKE', $value]];

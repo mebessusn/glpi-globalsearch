@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Global Search for GLPI 11
+ * Global Search for GLPI 10, 11 and 12
  *
  * Replaces the top-bar search with a full-text search across tickets,
  * problems, changes (title + description + followups + tasks) and the
@@ -13,9 +13,9 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_GLOBALSEARCH_VERSION', '0.1.0');
-define('PLUGIN_GLOBALSEARCH_MIN_GLPI', '11.0.0');
-define('PLUGIN_GLOBALSEARCH_MAX_GLPI', '11.99.99');
+define('PLUGIN_GLOBALSEARCH_VERSION', '0.2.0');
+define('PLUGIN_GLOBALSEARCH_MIN_GLPI', '10.0.0');
+define('PLUGIN_GLOBALSEARCH_MAX_GLPI', '13.0.0');
 
 function plugin_init_globalsearch(): void
 {
@@ -23,16 +23,22 @@ function plugin_init_globalsearch(): void
 
     $PLUGIN_HOOKS['csrf_compliant']['globalsearch'] = true;
 
-    // Results page: standard (central) interface users only.
-    Firewall::addPluginStrategyForLegacyScripts(
-        'globalsearch',
-        '#^/front/search\.php$#',
-        Firewall::STRATEGY_CENTRAL_ACCESS
-    );
+    // GLPI 11+: results page for standard (central) interface users only.
+    // GLPI 10 has no firewall; front/search.php checks central access itself.
+    if (method_exists(Firewall::class, 'addPluginStrategyForLegacyScripts')) {
+        Firewall::addPluginStrategyForLegacyScripts(
+            'globalsearch',
+            '#^/front/search\.php$#',
+            Firewall::STRATEGY_CENTRAL_ACCESS
+        );
+    }
 
     // Hook the top search bar only for central-interface sessions.
     if (Session::getLoginUserID() && Session::getCurrentInterface() === 'central') {
-        $PLUGIN_HOOKS['add_javascript']['globalsearch'][] = 'js/globalsearch.js';
+        // GLPI 11+ serves plugin assets from public/ (URLs without "/public");
+        // GLPI 10 serves the plugin root.
+        $prefix = version_compare(GLPI_VERSION, '11.0.0', '>=') ? '' : 'public/';
+        $PLUGIN_HOOKS['add_javascript']['globalsearch'][] = $prefix . 'js/globalsearch.js';
     }
 }
 
@@ -50,7 +56,7 @@ function plugin_version_globalsearch(): array
                 'max' => PLUGIN_GLOBALSEARCH_MAX_GLPI,
             ],
             'php'  => [
-                'min' => '8.2',
+                'min' => '8.1',
             ],
         ],
     ];
