@@ -75,7 +75,7 @@ echo '<div class="input-group">';
 echo '<input type="search" name="q" class="form-control" autofocus value="' . $e($query) . '" placeholder="' . $e(__('Search tickets, problems, changes, followups, tasks and the knowledge base')) . '">';
 echo '<button type="submit" class="btn btn-primary"><i class="ti ti-search"></i></button>';
 echo '</div>';
-echo '<div class="form-text mb-2">' . $e(__('Every word must appear. Hostnames like web-01.corp.local are matched as-is.')) . '</div>';
+echo '<div class="text-muted mt-1 mb-2" style="font-size: .85em">' . $e(__('Every word must appear. Hostnames like web-01.corp.local are matched as-is.')) . '</div>';
 
 echo '<div class="row g-2 align-items-end globalsearch-filters">';
 $field = static function (string $label, string $control, string $extra = '') use ($e): string {
