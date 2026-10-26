@@ -13,7 +13,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_GLOBALSEARCH_VERSION', '0.2.0');
+define('PLUGIN_GLOBALSEARCH_VERSION', '0.3.0');
 define('PLUGIN_GLOBALSEARCH_MIN_GLPI', '10.0.0');
 define('PLUGIN_GLOBALSEARCH_MAX_GLPI', '13.0.0');
 

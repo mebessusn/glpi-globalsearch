@@ -5,7 +5,14 @@ Replaces the top search bar with one search across:
 - Tickets, Problems, Changes: title, description, followups, tasks
 - Knowledge base: article title and content
 
-Results are grouped by type, newest first, with the matched field and a highlighted snippet.
+Results are grouped into tabs by type (with counts), with the matched field and a highlighted snippet.
+
+## Features
+
+- **Status at a glance**: every ticket, problem and change shows GLPI's own colored status icon and name (New, Processing, Pending, Solved, Closed…). Closed and solved items are included in searches.
+- **Filters**: status (open / pending / solved / closed / solved or closed), last updated (7 / 30 / 90 days, 12 months or a custom date range), where the words were found (title, description, followups, tasks), sort order and page size. Filters apply as soon as you change them.
+- **Search by person**: pick a user in *Touched by* to list everything they touched: requester, observer or assigned, opened it, last updated it, or wrote a followup, task or solution (and KB articles they wrote). Combine it with words to narrow it down. Typing a name or login in the search box also suggests matching people.
+- **Pagination**: every result is reachable, page by page (25, 50 or 100 per page).
 
 ## Compatibility
 
@@ -43,7 +50,12 @@ Only users with the standard (central) interface get the plugin. Self-service us
 - Words shorter than 2 characters are ignored. At most 6 words are used.
 - Hostnames, IPs and paths are matched as typed. For example, `web-01.corp.local` works.
 - It searches with LIKE, not the MySQL full-text index, so there is no minimum word length or stopword problem.
-- Limits: 150 candidate rows per table and 30 results per section.
+- Up to 5,000 matches per type are listed (a notice tells you when there are more; add words or filters).
+- Trashed (deleted) items are not shown. Status and followup/task filters don't apply to KB articles.
+
+## Permissions and speed
+
+Results go through GLPI's own visibility rules. Users with "see all" rights on a type get results in well under a second, even with thousands of matches. Users without it get each match checked with GLPI's own `canViewItem()`, so a search matching thousands of items can take a few seconds for them.
 
 ## Performance
 
