@@ -1,0 +1,64 @@
+<root>
+   <name>Global Search</name>
+   <key>globalsearch</key>
+   <state>stable</state>
+   <logo>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/globalsearch.png</logo>
+   <description>
+      <short>
+         <en>One search box for everything: tickets, problems, changes (incl. followups and tasks), knowledge base, assets (serial, IP, MAC), users, software, documents and projects. Filters, status icons, search by person, pagination.</en>
+      </short>
+      <long>
+         <en>
+Replaces GLPI's top search bar with a full-text search across:
+
+- **Tickets, problems, changes**: title, description, followups and tasks, in any status (closed included)
+- **Knowledge base**: article title and content
+- **Assets** (computers, network devices, printers, phones, monitors, peripherals): name, serial, inventory number, contact, comments, **IP address** and **MAC address**
+- **Users**: login, name, email, phone, administrative number
+- **Software, documents, projects**
+
+Features:
+
+- Results in tabs per type with counts, GLPI's colored status icon on every ticket, highlighted snippets.
+- **Filters**: status (open / pending / solved / closed), last updated (presets or a date range), where the words were found, sort, page size.
+- **Touched by**: pick a person to list everything they were requester, observer or assigned on, opened, updated, or wrote a followup, task or solution on (and their assets, software, documents and projects).
+- **Pagination**: every result is reachable.
+- **Respects GLPI permissions**: entities, "see all / my group / my own" rights, private followups and tasks, knowledge base targets.
+- No external requests: works on air-gapped servers.
+
+Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
+         </en>
+      </long>
+   </description>
+   <homepage>https://github.com/mebessusn/glpi-globalsearch</homepage>
+   <download>https://github.com/mebessusn/glpi-globalsearch/releases</download>
+   <issues>https://github.com/mebessusn/glpi-globalsearch/issues</issues>
+   <readme>https://github.com/mebessusn/glpi-globalsearch/blob/main/README.md</readme>
+   <authors>
+      <author>Megan Bess</author>
+   </authors>
+   <versions>
+      <version>
+         <num>0.4.0</num>
+         <compatibility>~10.0 || ~11.0 || ~12.0</compatibility>
+         <download_url>https://github.com/mebessusn/glpi-globalsearch/releases/download/v0.4.0/globalsearch-0.4.0.tar.gz</download_url>
+      </version>
+   </versions>
+   <langs>
+      <lang>en_GB</lang>
+   </langs>
+   <license>GPL v3+</license>
+   <tags>
+      <en>
+         <tag>search</tag>
+         <tag>global search</tag>
+         <tag>tickets</tag>
+         <tag>assets</tag>
+         <tag>knowledge base</tag>
+      </en>
+   </tags>
+   <screenshots>
+      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/screenshots/tickets.png</screenshot>
+      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/screenshots/assets.png</screenshot>
+   </screenshots>
+</root>

@@ -12,6 +12,10 @@ Replaces the top search bar with one search across:
 
 Results are grouped into tabs by type (with counts), with the matched field and a highlighted snippet.
 
+![Ticket results with status icons and filters](screenshots/tickets.png)
+
+![Assets found by IP address](screenshots/assets.png)
+
 ## Features
 
 - **Status at a glance**: every ticket, problem and change shows GLPI's own colored status icon and name (New, Processing, Pending, Solved, Closed…). Closed and solved items are included in searches.
