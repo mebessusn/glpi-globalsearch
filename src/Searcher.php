@@ -31,6 +31,8 @@ use User;
  */
 class Searcher
 {
+    use CatalogSearch;
+
     /** Hard ceiling of matching items considered per type (keeps huge result sets fast). */
     public const MAX_MATCHES = 5000;
 
@@ -48,7 +50,7 @@ class Searcher
         'change'  => [Change::class, ChangeTask::class, 'changes_id', 'Change_User'],
     ];
 
-    public const TYPES = ['ticket', 'problem', 'change', 'kb'];
+    public const TYPES = ['ticket', 'problem', 'change', 'kb', 'asset', 'user', 'software', 'document', 'project'];
 
     /** @var string[] */
     private array $terms;
@@ -170,11 +172,19 @@ class Searcher
         if (KnowbaseItem::canView()) {
             $types[] = 'kb';
         }
+        foreach (array_keys(self::catalogConfig()) as $key) {
+            if (self::catalogClasses($key) !== []) {
+                $types[] = $key;
+            }
+        }
         return $types;
     }
 
     public static function typeLabel(string $type): string
     {
+        if (self::isCatalogType($type)) {
+            return self::catalogLabel($type);
+        }
         return $type === 'kb'
             ? KnowbaseItem::getTypeName(1)
             : self::ITIL[$type][0]::getTypeName(Session::getPluralNumber());
@@ -205,7 +215,10 @@ class Searcher
 
         $out = [];
         foreach ($ids as $id) {
-            $out[] = $this->buildResult($type, $id, array_keys($res['matched'][$id] ?? []));
+            $matched = array_keys($res['matched'][$id] ?? []);
+            $out[] = self::isCatalogType($type)
+                ? $this->buildCatalogResult((string) $id, $matched)
+                : $this->buildResult($type, (int) $id, $matched);
         }
         return $out;
     }
@@ -273,7 +286,11 @@ class Searcher
         if (!$this->hasCriteria() || !in_array($type, $this->availableTypes(), true)) {
             return $this->cache[$type] = $empty;
         }
-        $result = $type === 'kb' ? $this->resolveKb() : $this->resolveItil($type);
+        $result = match (true) {
+            self::isCatalogType($type) => $this->resolveCatalog($type),
+            $type === 'kb'             => $this->resolveKb(),
+            default                    => $this->resolveItil($type),
+        };
         return $this->cache[$type] = $result;
     }
 
@@ -660,27 +677,35 @@ class Searcher
      */
     private function likeAll(array $fields): array
     {
-        global $DB;
-
         $and = [];
         foreach ($this->terms as $term) {
-            $needle = $term;
-            if (self::isLegacy() && class_exists('Glpi\\Toolbox\\Sanitizer')) {
-                // match GLPI 10's HTML-encoded storage
-                $needle = \Glpi\Toolbox\Sanitizer::encodeHtmlSpecialChars($needle);
-            }
-            $value = '%' . addcslashes($needle, '%_\\') . '%';
-            if (self::isLegacy()) {
-                // GLPI 10's query builder does not escape values: do it here.
-                $value = $DB->escape($value);
-            }
-            $or = [];
-            foreach ($fields as $field) {
-                $or[] = [$field => ['LIKE', $value]];
-            }
-            $and[] = ['OR' => $or];
+            $and[] = $this->likeTerm($fields, $term);
         }
         return $and;
+    }
+
+    /**
+     * One word in any of the fields: ['OR' => [field LIKE %word%, ...]].
+     */
+    private function likeTerm(array $fields, string $term): array
+    {
+        global $DB;
+
+        $needle = $term;
+        if (self::isLegacy() && class_exists('Glpi\\Toolbox\\Sanitizer')) {
+            // match GLPI 10's HTML-encoded storage
+            $needle = \Glpi\Toolbox\Sanitizer::encodeHtmlSpecialChars($needle);
+        }
+        $value = '%' . addcslashes($needle, '%_\\') . '%';
+        if (self::isLegacy()) {
+            // GLPI 10's query builder does not escape values: do it here.
+            $value = $DB->escape($value);
+        }
+        $or = [];
+        foreach ($fields as $field) {
+            $or[] = [$field => ['LIKE', $value]];
+        }
+        return ['OR' => $or];
     }
 
     private function matchesAny(string $text): bool

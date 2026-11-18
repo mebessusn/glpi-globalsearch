@@ -4,6 +4,11 @@ Replaces the top search bar with one search across:
 
 - Tickets, Problems, Changes: title, description, followups, tasks
 - Knowledge base: article title and content
+- Assets (computers, network devices, printers, phones, monitors, peripherals): name, serial, inventory number, alternate username, comments, **IP address** and **MAC address** (`aa:bb:..` or `AA-BB-..`)
+- Users: login, first and last name, email, phone / mobile, administrative (employee) number
+- Software: name and comments
+- Documents: name, file name and comments
+- Projects: name, code, description and comments
 
 Results are grouped into tabs by type (with counts), with the matched field and a highlighted snippet.
 
@@ -13,6 +18,8 @@ Results are grouped into tabs by type (with counts), with the matched field and 
 - **Filters**: status (open / pending / solved / closed / solved or closed), last updated (7 / 30 / 90 days, 12 months or a custom date range), where the words were found (title, description, followups, tasks), sort order and page size. Filters apply as soon as you change them.
 - **Search by person**: pick a user in *Touched by* to list everything they touched: requester, observer or assigned, opened it, last updated it, or wrote a followup, task or solution (and KB articles they wrote). Combine it with words to narrow it down. Typing a name or login in the search box also suggests matching people.
 - **Pagination**: every result is reachable, page by page (25, 50 or 100 per page).
+- **Asset and user details at a glance**: type icon, serial and inventory numbers, status, location, user, IP addresses; for users their email, phones and an *Inactive* flag.
+- **Touched by** also lists assets and software a person uses or is technician for, documents they uploaded, and projects they manage or are on the team of.
 
 ## Compatibility
 
@@ -34,6 +41,8 @@ Results go through GLPI's own `canViewItem()` checks for each item. That means t
 - "see all / see my group's / see my own" ticket rights
 - private followups and tasks
 - KB visibility targets
+- assets and software: the type's read right and your active entities (trashed items and templates are never shown)
+- users, documents and projects: GLPI's own per-item checks
 
 Only users with the standard (central) interface get the plugin. Self-service users keep the normal search.
 

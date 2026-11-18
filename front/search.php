@@ -54,6 +54,18 @@ $labels = [
     'followup'    => __('Followup'),
     'task'        => __('Task'),
     'person'      => __('Person'),
+    'login'       => __('Login'),
+    'serial'      => __('Serial number'),
+    'inventory'   => __('Inventory number'),
+    'contact'     => __('Alternate username'),
+    'comment'     => __('Comments'),
+    'ip'          => __('IP address'),
+    'mac'         => __('MAC address'),
+    'email'       => __('Email'),
+    'phone'       => __('Phone'),
+    'employee'    => __('Administrative number'),
+    'filename'    => __('File'),
+    'code'        => __('Code'),
 ];
 
 $opt = static function (array $options, string $current) use ($e): string {
@@ -72,7 +84,7 @@ if ($f['type'] !== '') {
     echo '<input type="hidden" name="type" value="' . $e($f['type']) . '">';
 }
 echo '<div class="input-group">';
-echo '<input type="search" name="q" class="form-control" autofocus value="' . $e($query) . '" placeholder="' . $e(__('Search tickets, problems, changes, followups, tasks and the knowledge base')) . '">';
+echo '<input type="search" name="q" class="form-control" autofocus value="' . $e($query) . '" placeholder="' . $e(__('Search tickets, the knowledge base, assets (name, serial, IP, MAC), users, software, documents, projects')) . '">';
 echo '<button type="submit" class="btn btn-primary"><i class="ti ti-search"></i></button>';
 echo '</div>';
 echo '<div class="text-muted mt-1 mb-2" style="font-size: .85em">' . $e(__('Every word must appear. Hostnames like web-01.corp.local are matched as-is.')) . '</div>';
@@ -216,8 +228,14 @@ if (!$searcher->hasCriteria()) {
         }
         $results = $total > 0 ? $searcher->page($active) : [];
 
-        if ($active === 'kb' && $total === 0 && ($f['status'] !== 'any' || in_array($f['in'], ['followup', 'task'], true))) {
-            echo '<div class="card-body text-muted">' . $e(__('Knowledge base articles have no status, followups or tasks: clear those filters to see them.')) . '</div>';
+        $ticketOnly = $f['status'] !== 'any' || in_array($f['in'], ['followup', 'task'], true);
+        if ($total === 0 && ($active === 'kb' || Searcher::isCatalogType($active)) && $ticketOnly) {
+            echo '<div class="card-body text-muted">' . $e(sprintf(
+                __('%s: these items have no ticket status, followups or tasks. Clear the Status / Found in filters to see them.'),
+                Searcher::typeLabel($active)
+            )) . '</div>';
+        } elseif ($total === 0 && $active === 'user' && $f['person'] > 0) {
+            echo '<div class="card-body text-muted">' . $e(__('The "Touched by" filter does not apply to users: remove it to search users.')) . '</div>';
         } elseif ($total === 0) {
             echo '<div class="card-body text-muted">' . $e(__('No results in this section.')) . '</div>';
         } else {
@@ -238,6 +256,12 @@ if (!$searcher->hasCriteria()) {
                 echo '<a class="list-group-item list-group-item-action" href="' . $e($r['url']) . '">';
                 echo '<div class="d-flex justify-content-between align-items-start gap-3">';
                 echo '<div class="d-flex align-items-center flex-wrap gap-2">';
+                if (!empty($r['typename'])) {
+                    // asset / user / document ... : GLPI's icon for the type + its name
+                    echo '<span class="badge bg-secondary-lt text-nowrap">'
+                        . ($r['icon'] !== '' ? '<i class="' . $e($r['icon']) . ' me-1"></i>' : '')
+                        . $e($r['typename']) . '</span>';
+                }
                 if ($r['status'] !== null) {
                     $itemtype = $r['itemtype'];
                     // GLPI's own colored status icon + the status name
@@ -245,6 +269,9 @@ if (!$searcher->hasCriteria()) {
                         . '<span class="gs-status-label">' . $e($itemtype::getStatus($r['status'])) . '</span></span>';
                 }
                 echo '<strong>' . Searcher::highlight($r['title'], $terms) . '</strong>';
+                foreach ($r['badges'] ?? [] as $badge) {
+                    echo '<span class="badge bg-warning-lt">' . $e($badge) . '</span>';
+                }
                 echo '</div>';
                 echo '<div class="text-muted text-nowrap text-end" style="font-size: .8em">'
                     . $e(__('Updated')) . ' ' . $e(Html::convDateTime($r['date']))
@@ -258,6 +285,14 @@ if (!$searcher->hasCriteria()) {
                         echo '<span class="badge bg-blue-lt me-1">' . $e($label) . '</span>';
                     }
                     echo '</div>';
+                }
+                if (!empty($r['details'])) {
+                    $parts = [];
+                    foreach ($r['details'] as $label => $value) {
+                        $parts[] = '<span class="text-nowrap"><span class="text-muted">' . $e($label) . ':</span> '
+                            . Searcher::highlight((string) $value, $terms) . '</span>';
+                    }
+                    echo '<div class="mt-1 d-flex flex-wrap gap-3" style="font-size: .875em">' . implode('', $parts) . '</div>';
                 }
                 if ($r['snippet'] !== '') {
                     echo '<div class="text-muted mt-1" style="font-size: .875em">' . Searcher::highlight($r['snippet'], $terms) . '</div>';
