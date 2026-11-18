@@ -1,4 +1,6 @@
-# Global Search for GLPI
+# OmniSearch for GLPI
+
+> Formerly **Global Search**. Renamed in v0.5.0 because the plugin key `globalsearch` already belongs to another plugin in the GLPI catalog. See [Upgrading from Global Search](#upgrading-from-global-search).
 
 Replaces the top search bar with one search across:
 
@@ -52,10 +54,20 @@ Only users with the standard (central) interface get the plugin. Self-service us
 
 ## Install
 
-1. Download the latest release archive and unpack it into `<glpi>/plugins/`, so the folder is `<glpi>/plugins/globalsearch` (the folder name must be `globalsearch`). Or clone it:
-   `git clone https://github.com/mebessusn/glpi-globalsearch.git globalsearch`
-2. Run `bin/console plugin:install globalsearch` and then `bin/console plugin:activate globalsearch`, or use Setup → Plugins.
+1. Download the latest release archive and unpack it into `<glpi>/plugins/`, so the folder is `<glpi>/plugins/omnisearch` (the folder name must be `omnisearch`). Or clone it:
+   `git clone https://github.com/mebessusn/glpi-omnisearch.git omnisearch`
+2. Run `bin/console plugin:install omnisearch` and then `bin/console plugin:activate omnisearch`, or use Setup → Plugins.
 3. Hard-refresh the browser.
+
+## Upgrading from Global Search
+
+Versions up to 0.4.0 were called **Global Search** (folder `globalsearch`). The plugin stores no data, so switching is safe:
+
+1. In **Setup → Plugins**, disable and uninstall **Global Search**, then delete the `plugins/globalsearch` folder. If it still shows in the plugin list, click **Clean** next to it.
+2. Install OmniSearch as above (folder `plugins/omnisearch`).
+3. Hard-refresh the browser.
+
+Don't keep both installed: both would take over the top search bar.
 
 ## Search rules
 

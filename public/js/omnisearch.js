@@ -1,19 +1,19 @@
 /**
- * Global Search: send the GLPI top-bar search to the plugin results page.
+ * OmniSearch: send the GLPI top-bar search to the plugin results page.
  * The core search stays reachable at /front/search.php if ever needed.
  */
 (function () {
     'use strict';
 
     var root = (window.CFG_GLPI && CFG_GLPI.root_doc) ? CFG_GLPI.root_doc : '';
-    var target = root + '/plugins/globalsearch/front/search.php';
+    var target = root + '/plugins/omnisearch/front/search.php';
 
     function findTopBarInputs() {
         // Core GLPI global search field. Skip our own results-page form.
         var inputs = document.querySelectorAll('input[name="globalsearch"]');
         return Array.prototype.filter.call(inputs, function (input) {
             var form = input.form;
-            return !form || (form.getAttribute('action') || '').indexOf('/plugins/globalsearch/') === -1;
+            return !form || (form.getAttribute('action') || '').indexOf('/plugins/omnisearch/') === -1;
         });
     }
 
@@ -27,10 +27,10 @@
 
     function hook() {
         findTopBarInputs().forEach(function (input) {
-            if (input.dataset.globalsearchHooked) {
+            if (input.dataset.omnisearchHooked) {
                 return;
             }
-            input.dataset.globalsearchHooked = '1';
+            input.dataset.omnisearchHooked = '1';
             input.setAttribute('placeholder', 'Search everything…');
 
             if (input.form) {

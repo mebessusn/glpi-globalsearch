@@ -2,12 +2,12 @@
 
 // No tables or config to create: the plugin only reads existing GLPI data.
 
-function plugin_globalsearch_install(): bool
+function plugin_omnisearch_install(): bool
 {
     return true;
 }
 
-function plugin_globalsearch_uninstall(): bool
+function plugin_omnisearch_uninstall(): bool
 {
     return true;
 }

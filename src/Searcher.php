@@ -1,6 +1,6 @@
 <?php
 
-namespace GlpiPlugin\Globalsearch;
+namespace GlpiPlugin\Omnisearch;
 
 use Change;
 use ChangeTask;

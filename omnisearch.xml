@@ -1,8 +1,8 @@
 <root>
-   <name>Global Search</name>
-   <key>globalsearch</key>
+   <name>OmniSearch</name>
+   <key>omnisearch</key>
    <state>stable</state>
-   <logo>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/globalsearch.png</logo>
+   <logo>https://raw.githubusercontent.com/mebessusn/glpi-omnisearch/main/omnisearch.png</logo>
    <description>
       <short>
          <en>One search box for everything: tickets, problems, changes (incl. followups and tasks), knowledge base, assets (serial, IP, MAC), users, software, documents and projects. Filters, status icons, search by person, pagination.</en>
@@ -30,18 +30,18 @@ Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
          </en>
       </long>
    </description>
-   <homepage>https://github.com/mebessusn/glpi-globalsearch</homepage>
-   <download>https://github.com/mebessusn/glpi-globalsearch/releases</download>
-   <issues>https://github.com/mebessusn/glpi-globalsearch/issues</issues>
-   <readme>https://github.com/mebessusn/glpi-globalsearch/blob/main/README.md</readme>
+   <homepage>https://github.com/mebessusn/glpi-omnisearch</homepage>
+   <download>https://github.com/mebessusn/glpi-omnisearch/releases</download>
+   <issues>https://github.com/mebessusn/glpi-omnisearch/issues</issues>
+   <readme>https://github.com/mebessusn/glpi-omnisearch/blob/main/README.md</readme>
    <authors>
       <author>Megan Bess</author>
    </authors>
    <versions>
       <version>
-         <num>0.4.0</num>
+         <num>0.5.0</num>
          <compatibility>~10.0 || ~11.0 || ~12.0</compatibility>
-         <download_url>https://github.com/mebessusn/glpi-globalsearch/releases/download/v0.4.0/globalsearch-0.4.0.tar.gz</download_url>
+         <download_url>https://github.com/mebessusn/glpi-omnisearch/releases/download/v0.5.0/omnisearch-0.5.0.tar.gz</download_url>
       </version>
    </versions>
    <langs>
@@ -58,7 +58,7 @@ Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
       </en>
    </tags>
    <screenshots>
-      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/screenshots/tickets.png</screenshot>
-      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-globalsearch/main/screenshots/assets.png</screenshot>
+      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-omnisearch/main/screenshots/tickets.png</screenshot>
+      <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-omnisearch/main/screenshots/assets.png</screenshot>
    </screenshots>
 </root>

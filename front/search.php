@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Global Search results page.
- * URL: /plugins/globalsearch/front/search.php?q=...&type=ticket&status=open&person=12&page=2 ...
+ * OmniSearch results page.
+ * URL: /plugins/omnisearch/front/search.php?q=...&type=ticket&status=open&person=12&page=2 ...
  */
 
-use GlpiPlugin\Globalsearch\Searcher;
+use GlpiPlugin\Omnisearch\Searcher;
 
 // GLPI 10 serves this file directly; GLPI 11+ boots it through its kernel
 // (GLPI_ROOT already defined, firewall already applied).
@@ -24,7 +24,7 @@ $query = Searcher::rawInput((string) ($_GET['q'] ?? ''));
 $query = mb_substr(trim($query), 0, 200);
 $f     = Searcher::filtersFromRequest($_GET);
 
-$base = $CFG_GLPI['root_doc'] . '/plugins/globalsearch/front/search.php';
+$base = $CFG_GLPI['root_doc'] . '/plugins/omnisearch/front/search.php';
 $defaults = Searcher::filtersFromRequest([]);
 /** Link to this page with the current state, changed by $over. Defaults are left out of the URL. */
 $url = static function (array $over = []) use ($base, $query, $f, $defaults): string {
@@ -42,7 +42,7 @@ $url = static function (array $over = []) use ($base, $query, $f, $defaults): st
     return $base . ($params ? '?' . http_build_query($params) : '');
 };
 
-Html::header(__('Global search'), '', 'tools', 'globalsearch');
+Html::header('OmniSearch', '', 'tools', 'omnisearch');
 
 $searcher = new Searcher($query, $f);
 $terms    = $searcher->getTerms();
@@ -76,10 +76,10 @@ $opt = static function (array $options, string $current) use ($e): string {
     return $html;
 };
 
-echo '<div class="container-fluid globalsearch-results">';
+echo '<div class="container-fluid omnisearch-results">';
 
 /* ---------------- search form + filters ---------------- */
-echo '<form method="get" action="' . $e($base) . '" class="mb-3" id="globalsearch-form">';
+echo '<form method="get" action="' . $e($base) . '" class="mb-3" id="omnisearch-form">';
 if ($f['type'] !== '') {
     echo '<input type="hidden" name="type" value="' . $e($f['type']) . '">';
 }
@@ -89,7 +89,7 @@ echo '<button type="submit" class="btn btn-primary"><i class="ti ti-search"></i>
 echo '</div>';
 echo '<div class="text-muted mt-1 mb-2" style="font-size: .85em">' . $e(__('Every word must appear. Hostnames like web-01.corp.local are matched as-is.')) . '</div>';
 
-echo '<div class="row g-2 align-items-end globalsearch-filters">';
+echo '<div class="row g-2 align-items-end omnisearch-filters">';
 $field = static function (string $label, string $control, string $extra = '') use ($e): string {
     return '<div class="col-6 col-md-4 col-xl-2' . $extra . '"><label class="form-label mb-1 text-muted">' . $e($label) . '</label>' . $control . '</div>';
 };
@@ -148,7 +148,7 @@ echo '</form>';
 
 echo Html::scriptBlock(<<<JS
 (function () {
-    var form = document.getElementById('globalsearch-form');
+    var form = document.getElementById('omnisearch-form');
     if (!form) return;
     var submit = function () { var p = form.querySelector('input[name="page"]'); if (p) p.remove(); form.submit(); };
     form.querySelectorAll('.gs-autosubmit').forEach(function (el) {
