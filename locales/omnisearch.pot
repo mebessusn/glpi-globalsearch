@@ -1,5 +1,6 @@
 # OmniSearch for GLPI - translation template.
 # Copy to locales/<lang>.po (e.g. fr_FR.po), translate, then compile to <lang>.mo with msgfmt.
+# locales/en_GB.po is the reference (source) language.
 #
 msgid ""
 msgstr ""

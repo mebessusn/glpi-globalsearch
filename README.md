@@ -88,7 +88,7 @@ LIKE '%term%' scans the whole table, which is fine up to a few hundred thousand 
 
 ## Translations
 
-The plugin's own sentences use the `omnisearch` text domain. `locales/omnisearch.pot` is the template: copy it to `locales/<lang>.po`, translate, and compile it to `locales/<lang>.mo` with `msgfmt`.
+The plugin's own sentences use the `omnisearch` text domain. `locales/omnisearch.pot` is the template: copy it to `locales/<lang>.po`, translate, and compile it to `locales/<lang>.mo` with `msgfmt`. English (`en_GB`) ships as the reference translation.
 
 ## License
 
