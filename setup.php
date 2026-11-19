@@ -13,7 +13,7 @@
 
 use Glpi\Http\Firewall;
 
-define('PLUGIN_OMNISEARCH_VERSION', '0.5.0');
+define('PLUGIN_OMNISEARCH_VERSION', '0.5.1');
 define('PLUGIN_OMNISEARCH_MIN_GLPI', '10.0.0');
 define('PLUGIN_OMNISEARCH_MAX_GLPI', '13.0.0');
 

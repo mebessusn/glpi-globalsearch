@@ -39,9 +39,9 @@ Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
    </authors>
    <versions>
       <version>
-         <num>0.5.0</num>
+         <num>0.5.1</num>
          <compatibility>~10.0 || ~11.0 || ~12.0</compatibility>
-         <download_url>https://github.com/mebessusn/glpi-omnisearch/releases/download/v0.5.0/omnisearch-0.5.0.tar.gz</download_url>
+         <download_url>https://github.com/mebessusn/glpi-omnisearch/releases/download/v0.5.1/omnisearch-0.5.1.tar.gz</download_url>
       </version>
    </versions>
    <langs>

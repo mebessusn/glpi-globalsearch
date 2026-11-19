@@ -1,0 +1,210 @@
+# OmniSearch for GLPI - translation template.
+# Copy to locales/<lang>.po (e.g. fr_FR.po), translate, then compile to <lang>.mo with msgfmt.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: OmniSearch\n"
+"POT-Creation-Date: 2026-11-19\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: templates/search.html.twig
+msgid "Search tickets, the knowledge base, assets (name, serial, IP, MAC), users, software, documents, projects"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Every word must appear. Hostnames like web-01.corp.local are matched as-is."
+msgstr ""
+
+#: templates/search.html.twig
+msgid "From"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "To"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Touched by (person)"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Apply"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Reset filters"
+msgstr ""
+
+#: templates/search.html.twig
+#, php-format
+msgid "Touched by %s"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Remove"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Requester, observer or assigned; opened or last updated it; wrote a followup, task or solution."
+msgstr ""
+
+#: templates/search.html.twig
+msgid "People:"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Show everything this person touched"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Type at least 2 characters."
+msgstr ""
+
+#: templates/search.html.twig
+msgid "You do not have access to any searchable item."
+msgstr ""
+
+#: templates/search.html.twig
+msgid "No results. Try fewer words or loosen the filters."
+msgstr ""
+
+#: templates/search.html.twig
+#, php-format
+msgid "Showing %1$d–%2$d of %3$d"
+msgstr ""
+
+#: templates/search.html.twig
+#, php-format
+msgid "More than %1$d matches: only the first %2$d are listed. Add words or filters to narrow it down."
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Updated"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Opened"
+msgstr ""
+
+#: front/search.php
+msgid "Any status"
+msgstr ""
+
+#: front/search.php
+msgid "Open (not solved or closed)"
+msgstr ""
+
+#: front/search.php
+msgid "Pending / waiting"
+msgstr ""
+
+#: front/search.php
+msgid "Solved or closed"
+msgstr ""
+
+#: front/search.php
+msgid "Last updated"
+msgstr ""
+
+#: front/search.php
+msgid "Any time"
+msgstr ""
+
+#: front/search.php
+msgid "Last 7 days"
+msgstr ""
+
+#: front/search.php
+msgid "Last 30 days"
+msgstr ""
+
+#: front/search.php
+msgid "Last 90 days"
+msgstr ""
+
+#: front/search.php
+msgid "Last 12 months"
+msgstr ""
+
+#: front/search.php
+msgid "Custom range…"
+msgstr ""
+
+#: front/search.php
+msgid "Found in"
+msgstr ""
+
+#: front/search.php
+msgid "Anywhere"
+msgstr ""
+
+#: front/search.php
+msgid "Title only"
+msgstr ""
+
+#: front/search.php
+msgid "Description / content"
+msgstr ""
+
+#: front/search.php
+msgid "Followups"
+msgstr ""
+
+#: front/search.php
+msgid "Tasks"
+msgstr ""
+
+#: front/search.php
+msgid "Recently updated"
+msgstr ""
+
+#: front/search.php
+msgid "Least recently updated"
+msgstr ""
+
+#: front/search.php
+msgid "Newest first"
+msgstr ""
+
+#: front/search.php
+msgid "Oldest first"
+msgstr ""
+
+#: front/search.php
+msgid "Per page"
+msgstr ""
+
+#: front/search.php
+#, php-format
+msgid "%s: these items have no ticket status, followups or tasks. Clear the Status / Found in filters to see them."
+msgstr ""
+
+#: front/search.php
+msgid "The \"Touched by\" filter does not apply to users: remove it to search users."
+msgstr ""
+
+#: front/search.php
+msgid "No results in this section."
+msgstr ""
+
+#: front/search.php
+msgid "First page"
+msgstr ""
+
+#: front/search.php
+msgid "Previous page"
+msgstr ""
+
+#: front/search.php
+msgid "Next page"
+msgstr ""
+
+#: front/search.php
+msgid "Last page"
+msgstr ""
+
+#: templates/search.html.twig
+msgid "Not fully counted yet: open the tab to count it"
+msgstr ""

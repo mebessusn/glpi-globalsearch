@@ -41,14 +41,14 @@ Requires PHP 8.1 or newer.
 
 ## Permissions
 
-Results go through GLPI's own `canViewItem()` checks for each item. That means the plugin respects:
+A result is listed only if you could open it in GLPI yourself:
 
-- entities
-- "see all / see my group's / see my own" ticket rights
-- private followups and tasks
-- KB visibility targets
-- assets and software: the type's read right and your active entities (trashed items and templates are never shown)
-- users, documents and projects: GLPI's own per-item checks
+- **Tickets, problems, changes**: with "see all" rights on the type, your active entities are applied in the query; otherwise every match goes through GLPI's `canViewItem()` ("see my group's / my own" rights).
+- **Followups and tasks** only count as a match if you may read them: private ones need "see private", or must be your own (tasks: also assigned to you or your group).
+- **Knowledge base**: GLPI's `canViewItem()` on every article (visibility targets: users, groups, entities, profiles). Scheduled or expired articles are hidden, as in GLPI's own lists, except to knowledge base admins and the article's writer.
+- **Assets and software**: your active entities in the query. On GLPI 11 and 12, profiles with only "View assigned" / "View owned" get GLPI's own visibility criteria in the query and `canViewItem()` on every item, so they only see their own items.
+- **Users, documents, projects**: GLPI's `canViewItem()` on every item. The *People* suggestions and the *Touched by* filter only accept users you could open.
+- Trashed items and templates are never shown.
 
 Only users with the standard (central) interface get the plugin. Self-service users keep the normal search.
 
@@ -80,11 +80,15 @@ Don't keep both installed: both would take over the top search bar.
 
 ## Permissions and speed
 
-Results go through GLPI's own visibility rules. Users with "see all" rights on a type get results in well under a second, even with thousands of matches. Users without it get each match checked with GLPI's own `canViewItem()`, so a search matching thousands of items can take a few seconds for them.
+Users with "see all" (or full Read) rights get results in well under a second, even with thousands of matches. For others, matches are checked one by one with `canViewItem()`. The tab you are on is always counted exactly; the other tabs stop counting after 300 checks and show "N+", which keeps every page fast.
 
 ## Performance
 
 LIKE '%term%' scans the whole table, which is fine up to a few hundred thousand tickets and followups. If it gets slow, the next step is a FULLTEXT index plus MATCH ... AGAINST, or an external index.
+
+## Translations
+
+The plugin's own sentences use the `omnisearch` text domain. `locales/omnisearch.pot` is the template: copy it to `locales/<lang>.po`, translate, and compile it to `locales/<lang>.mo` with `msgfmt`.
 
 ## License
 

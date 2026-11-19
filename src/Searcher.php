@@ -5,6 +5,7 @@ namespace GlpiPlugin\Omnisearch;
 use Change;
 use ChangeTask;
 use CommonDBTM;
+use CommonITILTask;
 use ITILFollowup;
 use ITILSolution;
 use KnowbaseItem;
@@ -38,10 +39,12 @@ class Searcher
 
     public const PER_PAGE_OPTIONS = [25, 50, 100];
 
-    /** Rights bits (same values on GLPI 10, 11 and 12). */
-    private const RIGHT_READALL    = 1024;
-    private const RIGHT_SEEPUBLIC  = 1;
-    private const RIGHT_SEEPRIVATE = 8192;
+    /**
+     * Per-item permission checks allowed when only counting a tab that is not
+     * displayed. The displayed tab is always resolved exactly; other tabs show
+     * "N+" once this budget is spent, which bounds the cost of a page view.
+     */
+    public const COUNT_CHECK_BUDGET = 300;
 
     /** type key => [itemtype, task class, task FK, actor (link) class] */
     private const ITIL = [
@@ -59,6 +62,9 @@ class Searcher
 
     /** @var array<string, array{ids:int[], matched:array<int,array<string,bool>>, capped:bool}> */
     private array $cache = [];
+
+    /** Remaining per-item permission checks for the resolve in progress. */
+    private int $checksLeft = PHP_INT_MAX;
 
     /* ------------------------------------------------------------------ */
     /* GLPI 10 compatibility                                               */
@@ -190,16 +196,20 @@ class Searcher
             : self::ITIL[$type][0]::getTypeName(Session::getPluralNumber());
     }
 
-    /** Number of visible results for a type. */
-    public function count(string $type): int
+    /**
+     * Number of visible results for a type.
+     * $exact = false (tabs that are not displayed) stops after COUNT_CHECK_BUDGET
+     * per-item permission checks; isCapped() then says the count is a minimum.
+     */
+    public function count(string $type, bool $exact = true): int
     {
-        return count($this->resolve($type)['ids']);
+        return count($this->resolve($type, $exact)['ids']);
     }
 
-    /** Whether the type hit MAX_MATCHES (results beyond it are not shown). */
-    public function isCapped(string $type): bool
+    /** Whether the list is incomplete (MAX_MATCHES reached, or count budget spent). */
+    public function isCapped(string $type, bool $exact = true): bool
     {
-        return $this->resolve($type)['capped'];
+        return $this->resolve($type, $exact)['capped'];
     }
 
     /**
@@ -242,17 +252,34 @@ class Searcher
             'FROM'   => User::getTable(),
             'WHERE'  => array_merge(['is_deleted' => 0, 'is_active' => 1], $this->likeAll(['name', 'firstname', 'realname'])),
             'ORDER'  => ['realname', 'firstname', 'name'],
-            'LIMIT'  => $limit,
+            'LIMIT'  => 100, // scan a few more than shown: some may not be visible
         ]);
         foreach ($iterator as $row) {
+            // Only suggest users the viewer could open (same rule as the Users tab:
+            // GLPI's User::canViewItem() checks the users' entities).
+            $user = new User();
+            if (!$user->getFromDB((int) $row['id']) || !$user->canViewItem()) {
+                continue;
+            }
             $out[] = ['id' => (int) $row['id'], 'label' => self::userLabel($row)];
+            if (count($out) >= $limit) {
+                break;
+            }
         }
         return $out;
     }
 
+    /**
+     * "First Last (login)" for a user the viewer may see; "#id" otherwise
+     * (the person id comes from the URL, so it must not reveal other entities' users).
+     */
     public static function personLabel(int $users_id): string
     {
         global $DB;
+        $user = new User();
+        if (!$user->getFromDB($users_id) || !$user->canViewItem()) {
+            return sprintf('#%d', $users_id);
+        }
         $row = $DB->request([
             'SELECT' => ['id', 'name', 'firstname', 'realname'],
             'FROM'   => User::getTable(),
@@ -277,21 +304,42 @@ class Searcher
      *
      * @return array{ids:int[], matched:array<int,array<string,bool>>, capped:bool}
      */
-    private function resolve(string $type): array
+    private function resolve(string $type, bool $exact = true): array
     {
-        if (isset($this->cache[$type])) {
-            return $this->cache[$type];
+        // an exact result also answers a budgeted count
+        if (isset($this->cache[$type . ':1'])) {
+            return $this->cache[$type . ':1'];
+        }
+        $key = $type . ':' . (int) $exact;
+        if (isset($this->cache[$key])) {
+            return $this->cache[$key];
         }
         $empty = ['ids' => [], 'matched' => [], 'capped' => false];
         if (!$this->hasCriteria() || !in_array($type, $this->availableTypes(), true)) {
-            return $this->cache[$type] = $empty;
+            return $this->cache[$key] = $empty;
         }
+        $this->checksLeft = $exact ? PHP_INT_MAX : self::COUNT_CHECK_BUDGET;
         $result = match (true) {
             self::isCatalogType($type) => $this->resolveCatalog($type),
             $type === 'kb'             => $this->resolveKb(),
             default                    => $this->resolveItil($type),
         };
-        return $this->cache[$type] = $result;
+        $this->checksLeft = PHP_INT_MAX;
+        return $this->cache[$key] = $result;
+    }
+
+    /**
+     * GLPI's own per-item visibility check (canViewItem()), counted against the
+     * current budget. Returns null when the budget is spent.
+     */
+    private function canSee(string $class, int $id): ?bool
+    {
+        if ($this->checksLeft <= 0) {
+            return null;
+        }
+        $this->checksLeft--;
+        $item = new $class();
+        return $item->getFromDB($id) && $item->canViewItem();
     }
 
     private function resolveItil(string $type): array
@@ -305,9 +353,14 @@ class Searcher
 
         /** @var array<int, array<string,bool>> $matched id => where it matched */
         $matched = [];
-        $add = function (iterable $rows, string $col, string $where) use (&$matched) {
+        $add = function (iterable $rows, string $col, string $where) use (&$matched, &$capped) {
+            $n = 0;
             foreach ($rows as $row) {
                 $matched[(int) $row[$col]][$where] = true;
+                $n++;
+            }
+            if ($n >= self::MAX_MATCHES * 4) {
+                $capped = true; // row limit reached: some matches were not read
             }
         };
 
@@ -320,6 +373,10 @@ class Searcher
                     'WHERE'  => array_merge(['is_deleted' => 0], $this->likeAll($fields)),
                     'LIMIT'  => self::MAX_MATCHES + 1,
                 ]) as $row) {
+                    if (count($matched) >= self::MAX_MATCHES) {
+                        $capped = true;
+                        break;
+                    }
                     $where = $in !== 'any' ? $in : ($this->matchesAny(self::stored((string) $row['name'])) ? 'title' : 'description');
                     $matched[(int) $row['id']][$where] = true;
                 }
@@ -363,7 +420,7 @@ class Searcher
         }
 
         if ($matched === []) {
-            return ['ids' => [], 'matched' => [], 'capped' => false];
+            return ['ids' => [], 'matched' => [], 'capped' => $capped];
         }
 
         // Load candidates with filters, entity restriction and sort applied in SQL.
@@ -371,7 +428,8 @@ class Searcher
         $where = array_merge(['id' => $ids, 'is_deleted' => 0], $this->statusCriteria($itemtype), $this->dateCriteria());
         if (function_exists('getEntitiesRestrictCriteria')) {
             // empty when the user sees every entity (GLPI 10 returns [] then)
-            $entities = getEntitiesRestrictCriteria($table);
+            // problems and changes can be recursive (tickets cannot)
+            $entities = getEntitiesRestrictCriteria($table, '', '', $DB->fieldExists($table, 'is_recursive'));
             if ($entities !== []) {
                 $where[] = $entities;
             }
@@ -384,17 +442,22 @@ class Searcher
             'LIMIT'  => self::MAX_MATCHES + 1,
         ]);
 
-        $seeAll  = Session::haveRight($itemtype::$rightname, self::RIGHT_READALL);
+        $seeAll  = Session::haveRight($itemtype::$rightname, $itemtype::READALL);
         $visible = [];
+        $fetched = 0;
         foreach ($rows as $row) {
-            if (count($visible) >= self::MAX_MATCHES) {
+            if (++$fetched > self::MAX_MATCHES || count($visible) >= self::MAX_MATCHES) {
                 $capped = true;
                 break;
             }
             $id = (int) $row['id'];
             if (!$seeAll) {
-                $item = new $itemtype();
-                if (!$item->getFromDB($id) || !$item->canViewItem()) {
+                $ok = $this->canSee($itemtype, $id);
+                if ($ok === null) {
+                    $capped = true;
+                    break;
+                }
+                if (!$ok) {
                     continue;
                 }
             }
@@ -422,10 +485,23 @@ class Searcher
         if ($this->filters['person'] > 0) {
             $where['users_id'] = $this->filters['person'];
         }
+        // Scheduled / expired articles: hidden like in GLPI's own KB lists, except to
+        // knowledge base admins and their writer (GLPI 10/11 canViewItem() skips this check).
+        if (!Session::haveRight(KnowbaseItem::$rightname, KnowbaseItem::KNOWBASEADMIN)) {
+            $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+            $where[] = ['OR' => [
+                'users_id' => Session::getLoginUserID(),
+                ['AND' => [
+                    ['OR' => [['begin_date' => null], ['begin_date' => ['<', $now]]]],
+                    ['OR' => [['end_date' => null], ['end_date' => ['>', $now]]]],
+                ]],
+            ]];
+        }
 
         $matched = [];
         $visible = [];
         $capped  = false;
+        $fetched = 0;
         foreach ($DB->request([
             'SELECT' => ['id', 'name'],
             'FROM'   => KnowbaseItem::getTable(),
@@ -433,15 +509,20 @@ class Searcher
             'ORDER'  => $this->sortOrder('date_creation'),
             'LIMIT'  => self::MAX_MATCHES + 1,
         ]) as $row) {
-            if (count($visible) >= self::MAX_MATCHES) {
+            // more candidates than fetched: the list may miss visible items
+            if (++$fetched > self::MAX_MATCHES || count($visible) >= self::MAX_MATCHES) {
                 $capped = true;
                 break;
             }
-            $kb = new KnowbaseItem();
-            if (!$kb->getFromDB((int) $row['id']) || !$kb->canViewItem()) {
-                continue; // KB visibility targets (users / groups / entities / profiles)
-            }
             $id = (int) $row['id'];
+            $ok = $this->canSee(KnowbaseItem::class, $id); // KB targets: users / groups / entities / profiles
+            if ($ok === null) {
+                $capped = true;
+                break;
+            }
+            if (!$ok) {
+                continue;
+            }
             $visible[] = $id;
             if ($this->terms !== []) {
                 $matched[$id][$in !== 'any' ? $in : ($this->matchesAny(self::stored((string) $row['name'])) ? 'title' : 'description')] = true;
@@ -527,12 +608,13 @@ class Searcher
      */
     private function privacyCriteria(string $right, bool $isTask): array
     {
-        if (Session::haveRight($right, self::RIGHT_SEEPRIVATE)) {
+        $rights = $isTask ? CommonITILTask::class : ITILFollowup::class;
+        if (Session::haveRight($right, $rights::SEEPRIVATE)) {
             return [];
         }
         $me = (int) Session::getLoginUserID();
         $or = [['is_private' => 1, 'users_id' => $me]];
-        if (Session::haveRight($right, self::RIGHT_SEEPUBLIC)) {
+        if (Session::haveRight($right, $rights::SEEPUBLIC)) {
             $or[] = ['is_private' => 0];
         }
         if ($isTask) {
@@ -745,18 +827,27 @@ class Searcher
     }
 
     /**
-     * HTML-escape text and wrap terms in <mark>, in a single pass.
+     * HTML-escape text and wrap the search words in <mark>.
+     * Matching runs on the raw text and each piece is escaped separately, so a
+     * word like "amp" or "quot" can never land inside an HTML entity.
      */
     public static function highlight(string $text, array $terms): string
     {
-        $escaped = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $esc = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $terms = array_values(array_filter($terms, static fn($t) => $t !== ''));
         if ($terms === []) {
-            return $escaped;
+            return $esc($text);
         }
-        $alts = array_map(
-            static fn($t) => preg_quote(htmlspecialchars($t, ENT_QUOTES | ENT_HTML5, 'UTF-8'), '/'),
-            $terms
-        );
-        return (string) preg_replace('/' . implode('|', $alts) . '/iu', '<mark>$0</mark>', $escaped);
+        $pattern = '/(' . implode('|', array_map(static fn($t) => preg_quote($t, '/'), $terms)) . ')/iu';
+        $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return $esc($text); // invalid UTF-8: no highlighting
+        }
+        $out = '';
+        foreach ($parts as $i => $part) {
+            // with one capture group, odd indexes are the matched words
+            $out .= $i % 2 === 1 ? '<mark>' . $esc($part) . '</mark>' : $esc($part);
+        }
+        return $out;
     }
 }

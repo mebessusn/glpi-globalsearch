@@ -2,9 +2,12 @@
 
 /**
  * OmniSearch results page.
- * URL: /plugins/omnisearch/front/search.php?q=...&type=ticket&status=open&person=12&page=2 ...
+ * URL: <plugin web dir>/front/search.php?q=...&type=ticket&status=open&person=12&page=2 ...
+ *
+ * This file only prepares data; templates/search.html.twig renders it (auto-escaped).
  */
 
+use Glpi\Application\View\TemplateRenderer;
 use GlpiPlugin\Omnisearch\Searcher;
 
 // GLPI 10 serves this file directly; GLPI 11+ boots it through its kernel
@@ -16,7 +19,8 @@ Session::checkCentralAccess();
 
 global $CFG_GLPI;
 
-$e = static fn($s): string => htmlspecialchars((string) $s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+// the plugin's own sentences use the plugin's text domain (locales/*.mo)
+$t = static fn(string $s): string => __($s, 'omnisearch');
 
 // GLPI 10 HTML-encodes and SQL-escapes $_GET before plugins see it;
 // work from the text the user actually typed (Searcher re-escapes for SQL).
@@ -24,25 +28,35 @@ $query = Searcher::rawInput((string) ($_GET['q'] ?? ''));
 $query = mb_substr(trim($query), 0, 200);
 $f     = Searcher::filtersFromRequest($_GET);
 
-$base = $CFG_GLPI['root_doc'] . '/plugins/omnisearch/front/search.php';
+// "Touched by": only a user this session may see (else the name and the
+// dropdown's contact card of any user ID would be shown).
+if ($f['person'] > 0) {
+    $person = new User();
+    if (!$person->getFromDB($f['person']) || !$person->canViewItem()) {
+        $f['person'] = 0;
+    }
+}
+
+// GLPI 10 installs Marketplace plugins under /marketplace/, GLPI 11+ serves /plugins/.
+$base = (version_compare(GLPI_VERSION, '11.0.0', '>=')
+    ? $CFG_GLPI['root_doc'] . '/plugins/omnisearch'
+    : Plugin::getWebDir('omnisearch')) . '/front/search.php';
 $defaults = Searcher::filtersFromRequest([]);
 /** Link to this page with the current state, changed by $over. Defaults are left out of the URL. */
 $url = static function (array $over = []) use ($base, $query, $f, $defaults): string {
-    $state = array_merge(['q' => $query], $f, ['page' => 1], $over);
+    $state  = array_merge(['q' => $query], $f, ['page' => 1], $over);
     $params = [];
     foreach ($state as $k => $v) {
         if ($v === '' || $v === 0 || (isset($defaults[$k]) && $defaults[$k] === $v)) {
             continue;
         }
-        if ($k !== 'period' && in_array($k, ['from', 'to'], true) && ($state['period'] ?? '') !== 'custom') {
+        if (in_array($k, ['from', 'to'], true) && ($state['period'] ?? '') !== 'custom') {
             continue;
         }
         $params[$k] = $v;
     }
     return $base . ($params ? '?' . http_build_query($params) : '');
 };
-
-Html::header('OmniSearch', '', 'tools', 'omnisearch');
 
 $searcher = new Searcher($query, $f);
 $terms    = $searcher->getTerms();
@@ -68,70 +82,45 @@ $labels = [
     'code'        => __('Code'),
 ];
 
-$opt = static function (array $options, string $current) use ($e): string {
-    $html = '';
-    foreach ($options as $value => $label) {
-        $html .= '<option value="' . $e($value) . '"' . ((string) $value === $current ? ' selected' : '') . '>' . $e($label) . '</option>';
-    }
-    return $html;
-};
-
-echo '<div class="container-fluid omnisearch-results">';
-
-/* ---------------- search form + filters ---------------- */
-echo '<form method="get" action="' . $e($base) . '" class="mb-3" id="omnisearch-form">';
-if ($f['type'] !== '') {
-    echo '<input type="hidden" name="type" value="' . $e($f['type']) . '">';
-}
-echo '<div class="input-group">';
-echo '<input type="search" name="q" class="form-control" autofocus value="' . $e($query) . '" placeholder="' . $e(__('Search tickets, the knowledge base, assets (name, serial, IP, MAC), users, software, documents, projects')) . '">';
-echo '<button type="submit" class="btn btn-primary"><i class="ti ti-search"></i></button>';
-echo '</div>';
-echo '<div class="text-muted mt-1 mb-2" style="font-size: .85em">' . $e(__('Every word must appear. Hostnames like web-01.corp.local are matched as-is.')) . '</div>';
-
-echo '<div class="row g-2 align-items-end omnisearch-filters">';
-$field = static function (string $label, string $control, string $extra = '') use ($e): string {
-    return '<div class="col-6 col-md-4 col-xl-2' . $extra . '"><label class="form-label mb-1 text-muted">' . $e($label) . '</label>' . $control . '</div>';
-};
-echo $field(__('Status'), '<select name="status" class="form-select form-select-sm gs-autosubmit">' . $opt([
-    'any'     => __('Any status'),
-    'open'    => __('Open (not solved or closed)'),
-    'waiting' => __('Pending / waiting'),
-    'solved'  => __('Solved'),
-    'closed'  => __('Closed'),
-    'done'    => __('Solved or closed'),
-], $f['status']) . '</select>');
-echo $field(__('Last updated'), '<select name="period" class="form-select form-select-sm gs-autosubmit" id="gs-period">' . $opt([
-    'any'    => __('Any time'),
-    '7'      => __('Last 7 days'),
-    '30'     => __('Last 30 days'),
-    '90'     => __('Last 90 days'),
-    '365'    => __('Last 12 months'),
-    'custom' => __('Custom range…'),
-], $f['period']) . '</select>');
-$hide = $f['period'] === 'custom' ? '' : ' d-none';
-echo $field(__('From'), '<input type="date" name="from" class="form-control form-control-sm" value="' . $e($f['from']) . '">', ' gs-custom' . $hide);
-echo $field(__('To'), '<input type="date" name="to" class="form-control form-control-sm" value="' . $e($f['to']) . '">', ' gs-custom' . $hide);
-echo $field(__('Found in'), '<select name="in" class="form-select form-select-sm gs-autosubmit">' . $opt([
-    'any'         => __('Anywhere'),
-    'title'       => __('Title only'),
-    'description' => __('Description / content'),
-    'followup'    => __('Followups'),
-    'task'        => __('Tasks'),
-], $f['in']) . '</select>');
-echo $field(__('Sort'), '<select name="sort" class="form-select form-select-sm gs-autosubmit">' . $opt([
-    'updated_desc' => __('Recently updated'),
-    'updated_asc'  => __('Least recently updated'),
-    'opened_desc'  => __('Newest first'),
-    'opened_asc'   => __('Oldest first'),
-], $f['sort']) . '</select>');
-echo $field(__('Per page'), '<select name="per_page" class="form-select form-select-sm gs-autosubmit">' . $opt(
-    array_combine(Searcher::PER_PAGE_OPTIONS, Searcher::PER_PAGE_OPTIONS),
-    (string) $f['per_page']
-) . '</select>');
-echo $field(
-    __('Touched by (person)'),
-    User::dropdown([
+$vars = [
+    'base'      => $base,
+    'query'     => $query,
+    'filters'   => $f,
+    'reset_url' => $base . ($query !== '' ? '?' . http_build_query(['q' => $query]) : ''),
+    'selects'   => [
+        ['name' => 'status', 'label' => __('Status'), 'current' => $f['status'], 'options' => [
+            'any'     => $t('Any status'),
+            'open'    => $t('Open (not solved or closed)'),
+            'waiting' => $t('Pending / waiting'),
+            'solved'  => __('Solved'),
+            'closed'  => __('Closed'),
+            'done'    => $t('Solved or closed'),
+        ]],
+        ['name' => 'period', 'label' => $t('Last updated'), 'current' => $f['period'], 'options' => [
+            'any'    => $t('Any time'),
+            '7'      => $t('Last 7 days'),
+            '30'     => $t('Last 30 days'),
+            '90'     => $t('Last 90 days'),
+            '365'    => $t('Last 12 months'),
+            'custom' => $t('Custom range…'),
+        ]],
+        ['name' => 'in', 'label' => $t('Found in'), 'current' => $f['in'], 'options' => [
+            'any'         => $t('Anywhere'),
+            'title'       => $t('Title only'),
+            'description' => $t('Description / content'),
+            'followup'    => $t('Followups'),
+            'task'        => $t('Tasks'),
+        ]],
+        ['name' => 'sort', 'label' => __('Sort'), 'current' => $f['sort'], 'options' => [
+            'updated_desc' => $t('Recently updated'),
+            'updated_asc'  => $t('Least recently updated'),
+            'opened_desc'  => $t('Newest first'),
+            'opened_asc'   => $t('Oldest first'),
+        ]],
+        ['name' => 'per_page', 'label' => $t('Per page'), 'current' => (string) $f['per_page'],
+            'options' => array_combine(Searcher::PER_PAGE_OPTIONS, Searcher::PER_PAGE_OPTIONS)],
+    ],
+    'person_dropdown' => User::dropdown([
         'name'                => 'person',
         'value'               => $f['person'],
         'right'               => 'all',
@@ -139,21 +128,14 @@ echo $field(
         'width'               => '100%',
         'display_emptychoice' => true,
     ]),
-    ' col-md-8 col-xl-4'
-);
-echo '<div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">' . $e(__('Apply')) . '</button> '
-    . '<a class="btn btn-sm btn-link" href="' . $e($base . ($query !== '' ? '?' . http_build_query(['q' => $query]) : '')) . '">' . $e(__('Reset filters')) . '</a></div>';
-echo '</div>'; // row
-echo '</form>';
-
-echo Html::scriptBlock(<<<JS
+    'script' => Html::scriptBlock(<<<JS
 (function () {
     var form = document.getElementById('omnisearch-form');
     if (!form) return;
     var submit = function () { var p = form.querySelector('input[name="page"]'); if (p) p.remove(); form.submit(); };
     form.querySelectorAll('.gs-autosubmit').forEach(function (el) {
         el.addEventListener('change', function () {
-            if (el.id === 'gs-period') {
+            if (el.name === 'period') {
                 var custom = el.value === 'custom';
                 form.querySelectorAll('.gs-custom').forEach(function (c) { c.classList.toggle('d-none', !custom); });
                 if (custom) return; // wait for the dates
@@ -163,152 +145,128 @@ echo Html::scriptBlock(<<<JS
     });
     if (window.jQuery) { window.jQuery(form).find('select[name="person"]').on('change', submit); }
 })();
-JS);
+JS),
+    'person'        => null,
+    'people'        => [],
+    'state'         => 'none',
+    'tabs'          => [],
+    'note'          => null,
+    'rows'          => [],
+    'pager'         => [],
+    'showing'       => null,
+    'capped_notice' => false,
+    'max_matches'   => Searcher::MAX_MATCHES,
+];
 
 /* ---------------- person chip / people suggestions ---------------- */
 if ($f['person'] > 0) {
-    echo '<div class="mb-3"><span class="badge bg-azure-lt fs-5 p-2"><i class="ti ti-user me-1"></i>'
-        . $e(sprintf(__('Touched by %s'), Searcher::personLabel($f['person'])))
-        . ' <a class="ms-2" href="' . $e($url(['person' => 0])) . '" title="' . $e(__('Remove')) . '"><i class="ti ti-x"></i></a></span>'
-        . ' <span class="text-muted ms-2">' . $e(__('Requester, observer or assigned; opened or last updated it; wrote a followup, task or solution.')) . '</span></div>';
+    $vars['person'] = [
+        'label'      => Searcher::personLabel($f['person']),
+        'remove_url' => $url(['person' => 0]),
+    ];
 } elseif ($terms !== []) {
-    $people = $searcher->people();
-    if ($people !== []) {
-        echo '<div class="mb-3"><span class="text-muted me-2"><i class="ti ti-users me-1"></i>' . $e(__('People:')) . '</span>';
-        foreach ($people as $person) {
-            echo '<a class="btn btn-sm btn-outline-secondary me-1 mb-1" href="' . $e($url(['person' => $person['id'], 'q' => ''])) . '" title="'
-                . $e(__('Show everything this person touched')) . '"><i class="ti ti-user me-1"></i>' . $e($person['label']) . '</a>';
-        }
-        echo '</div>';
+    foreach ($searcher->people() as $p) {
+        $vars['people'][] = ['label' => $p['label'], 'url' => $url(['person' => $p['id'], 'q' => ''])];
     }
 }
 
 /* ---------------- results ---------------- */
 if (!$searcher->hasCriteria()) {
-    if ($query !== '') {
-        echo '<div class="alert alert-info">' . $e(__('Type at least 2 characters.')) . '</div>';
-    }
+    $vars['state'] = $query !== '' ? 'short' : 'none';
 } elseif ($types === []) {
-    echo '<div class="alert alert-warning">' . $e(__('You do not have access to any searchable item.')) . '</div>';
+    $vars['state'] = 'noaccess';
 } else {
-    $counts = [];
-    foreach ($types as $t) {
-        $counts[$t] = $searcher->count($t);
-    }
+    // The displayed tab is resolved exactly; the others only get a bounded count.
     $active = $f['type'] !== '' && in_array($f['type'], $types, true) ? $f['type'] : null;
     if ($active === null) {
-        foreach ($types as $t) {
-            if ($counts[$t] > 0) {
-                $active = $t;
+        foreach ($types as $type) {
+            if ($searcher->count($type, false) > 0 || $searcher->isCapped($type, false)) {
+                $active = $type;
                 break;
             }
         }
         $active ??= $types[0];
     }
 
-    if (array_sum($counts) === 0) {
-        echo '<div class="alert alert-warning">' . $e(__('No results. Try fewer words or loosen the filters.')) . '</div>';
-    } else {
-        echo '<div class="card">';
-        echo '<div class="card-header"><ul class="nav nav-tabs card-header-tabs">';
-        foreach ($types as $t) {
-            echo '<li class="nav-item"><a class="nav-link' . ($t === $active ? ' active' : '') . '" href="' . $e($url(['type' => $t])) . '">'
-                . $e(Searcher::typeLabel($t))
-                . ' <span class="badge ' . ($counts[$t] > 0 ? 'bg-secondary text-white' : 'bg-secondary-lt') . ' ms-1">'
-                . $counts[$t] . ($searcher->isCapped($t) ? '+' : '') . '</span></a></li>';
-        }
-        echo '</ul></div>';
+    $any = false;
+    foreach ($types as $type) {
+        $exact  = $type === $active;
+        $count  = $searcher->count($type, $exact);
+        $capped = $searcher->isCapped($type, $exact);
+        $any    = $any || $count > 0 || $capped;
+        $vars['tabs'][] = [
+            'label'  => Searcher::typeLabel($type),
+            'count'  => $count,
+            'capped' => $capped,
+            'url'    => $url(['type' => $type]),
+            'active' => $exact,
+        ];
+    }
 
-        $total   = $counts[$active];
+    if (!$any) {
+        $vars['state'] = 'noresults';
+    } else {
+        $vars['state'] = 'results';
+        $total   = $searcher->count($active);
         $pages   = max(1, (int) ceil($total / $f['per_page']));
         $current = min($f['page'], $pages);
         if ($current !== $f['page']) {
             $f['page'] = $current;
             $searcher->setPage($current);
         }
-        $results = $total > 0 ? $searcher->page($active) : [];
 
         $ticketOnly = $f['status'] !== 'any' || in_array($f['in'], ['followup', 'task'], true);
         if ($total === 0 && ($active === 'kb' || Searcher::isCatalogType($active)) && $ticketOnly) {
-            echo '<div class="card-body text-muted">' . $e(sprintf(
-                __('%s: these items have no ticket status, followups or tasks. Clear the Status / Found in filters to see them.'),
+            $vars['note'] = sprintf(
+                $t('%s: these items have no ticket status, followups or tasks. Clear the Status / Found in filters to see them.'),
                 Searcher::typeLabel($active)
-            )) . '</div>';
+            );
         } elseif ($total === 0 && $active === 'user' && $f['person'] > 0) {
-            echo '<div class="card-body text-muted">' . $e(__('The "Touched by" filter does not apply to users: remove it to search users.')) . '</div>';
+            $vars['note'] = $t('The "Touched by" filter does not apply to users: remove it to search users.');
         } elseif ($total === 0) {
-            echo '<div class="card-body text-muted">' . $e(__('No results in this section.')) . '</div>';
+            $vars['note'] = $t('No results in this section.');
         } else {
-            $from = ($current - 1) * $f['per_page'] + 1;
-            $to   = min($total, $current * $f['per_page']);
-            echo '<div class="card-body py-2 text-muted border-bottom">'
-                . $e(sprintf(__('Showing %1$d–%2$d of %3$d'), $from, $to, $total)) . '</div>';
-            if ($searcher->isCapped($active)) {
-                echo '<div class="alert alert-info m-2 mb-0">' . $e(sprintf(
-                    __('More than %d matches: only the first %d are listed. Add words or filters to narrow it down.'),
-                    Searcher::MAX_MATCHES,
-                    Searcher::MAX_MATCHES
-                )) . '</div>';
-            }
+            $vars['showing'] = [
+                'from'  => ($current - 1) * $f['per_page'] + 1,
+                'to'    => min($total, $current * $f['per_page']),
+                'total' => $total,
+            ];
+            $vars['capped_notice'] = $searcher->isCapped($active);
 
-            echo '<div class="list-group list-group-flush">';
-            foreach ($results as $r) {
-                echo '<a class="list-group-item list-group-item-action" href="' . $e($r['url']) . '">';
-                echo '<div class="d-flex justify-content-between align-items-start gap-3">';
-                echo '<div class="d-flex align-items-center flex-wrap gap-2">';
-                if (!empty($r['typename'])) {
-                    // asset / user / document ... : GLPI's icon for the type + its name
-                    echo '<span class="badge bg-secondary-lt text-nowrap">'
-                        . ($r['icon'] !== '' ? '<i class="' . $e($r['icon']) . ' me-1"></i>' : '')
-                        . $e($r['typename']) . '</span>';
+            foreach ($searcher->page($active) as $r) {
+                $details = [];
+                foreach ($r['details'] ?? [] as $label => $value) {
+                    $details[] = ['label' => $label, 'html' => Searcher::highlight((string) $value, $terms)];
                 }
-                if ($r['status'] !== null) {
-                    $itemtype = $r['itemtype'];
-                    // GLPI's own colored status icon + the status name
-                    echo '<span class="gs-status text-nowrap">' . $itemtype::getStatusIcon($r['status'])
-                        . '<span class="gs-status-label">' . $e($itemtype::getStatus($r['status'])) . '</span></span>';
+                $matched = [];
+                foreach ($r['matched'] as $m) {
+                    $matched[] = $active === 'kb' && $m === 'description' ? __('Content') : ($labels[$m] ?? $m);
                 }
-                echo '<strong>' . Searcher::highlight($r['title'], $terms) . '</strong>';
-                foreach ($r['badges'] ?? [] as $badge) {
-                    echo '<span class="badge bg-warning-lt">' . $e($badge) . '</span>';
-                }
-                echo '</div>';
-                echo '<div class="text-muted text-nowrap text-end" style="font-size: .8em">'
-                    . $e(__('Updated')) . ' ' . $e(Html::convDateTime($r['date']))
-                    . ($r['opened'] !== '' && $active !== 'kb' ? '<br>' . $e(__('Opened')) . ' ' . $e(Html::convDateTime($r['opened'])) : '')
-                    . '</div>';
-                echo '</div>';
-                if ($r['matched'] !== []) {
-                    echo '<div class="mt-1">';
-                    foreach ($r['matched'] as $m) {
-                        $label = $active === 'kb' && $m === 'description' ? __('Content') : ($labels[$m] ?? $m);
-                        echo '<span class="badge bg-blue-lt me-1">' . $e($label) . '</span>';
-                    }
-                    echo '</div>';
-                }
-                if (!empty($r['details'])) {
-                    $parts = [];
-                    foreach ($r['details'] as $label => $value) {
-                        $parts[] = '<span class="text-nowrap"><span class="text-muted">' . $e($label) . ':</span> '
-                            . Searcher::highlight((string) $value, $terms) . '</span>';
-                    }
-                    echo '<div class="mt-1 d-flex flex-wrap gap-3" style="font-size: .875em">' . implode('', $parts) . '</div>';
-                }
-                if ($r['snippet'] !== '') {
-                    echo '<div class="text-muted mt-1" style="font-size: .875em">' . Searcher::highlight($r['snippet'], $terms) . '</div>';
-                }
-                echo '</a>';
+                $itemtype = $r['itemtype'];
+                $vars['rows'][] = [
+                    'url'          => $r['url'],
+                    'typename'     => $r['typename'] ?? '',
+                    'icon'         => $r['icon'] ?? '',
+                    // GLPI's own colored status icon + the status name (tickets, problems, changes)
+                    'status_icon'  => $r['status'] !== null ? $itemtype::getStatusIcon($r['status']) : null,
+                    'status_label' => $r['status'] !== null ? $itemtype::getStatus($r['status']) : '',
+                    'title_html'   => Searcher::highlight($r['title'], $terms),
+                    'badges'       => $r['badges'] ?? [],
+                    'date'         => Html::convDateTime($r['date']),
+                    'opened'       => $r['opened'] !== '' && $active !== 'kb' ? Html::convDateTime($r['opened']) : '',
+                    'matched'      => $matched,
+                    'details'      => $details,
+                    'snippet_html' => $r['snippet'] !== '' ? Searcher::highlight($r['snippet'], $terms) : '',
+                ];
             }
-            echo '</div>';
 
             if ($pages > 1) {
-                echo '<div class="card-footer d-flex justify-content-center"><ul class="pagination m-0">';
-                $link = static function (int $p, string $label, bool $disabled = false, bool $isActive = false) use ($url, $e, $active): string {
-                    $cls = 'page-item' . ($disabled ? ' disabled' : '') . ($isActive ? ' active' : '');
-                    return '<li class="' . $cls . '"><a class="page-link" href="' . ($disabled ? '#' : $e($url(['type' => $active, 'page' => $p]))) . '">' . $label . '</a></li>';
-                };
-                echo $link(1, '<i class="ti ti-chevrons-left"></i>', $current === 1);
-                echo $link(max(1, $current - 1), '<i class="ti ti-chevron-left"></i>', $current === 1);
+                $link = static fn(int $p, array $extra = []) => array_merge([
+                    'url' => $url(['type' => $active, 'page' => $p]), 'label' => (string) $p,
+                    'icon' => null, 'title' => null, 'disabled' => false, 'active' => false, 'ellipsis' => false,
+                ], $extra);
+                $vars['pager'][] = $link(1, ['icon' => 'ti-chevrons-left', 'title' => $t('First page'), 'disabled' => $current === 1]);
+                $vars['pager'][] = $link(max(1, $current - 1), ['icon' => 'ti-chevron-left', 'title' => $t('Previous page'), 'disabled' => $current === 1]);
                 $window = array_unique(array_filter(
                     [1, $current - 2, $current - 1, $current, $current + 1, $current + 2, $pages],
                     static fn($p) => $p >= 1 && $p <= $pages
@@ -317,20 +275,18 @@ if (!$searcher->hasCriteria()) {
                 $prev = 0;
                 foreach ($window as $p) {
                     if ($prev && $p > $prev + 1) {
-                        echo '<li class="page-item disabled"><span class="page-link">…</span></li>';
+                        $vars['pager'][] = ['ellipsis' => true];
                     }
-                    echo $link($p, (string) $p, false, $p === $current);
+                    $vars['pager'][] = $link($p, ['active' => $p === $current]);
                     $prev = $p;
                 }
-                echo $link(min($pages, $current + 1), '<i class="ti ti-chevron-right"></i>', $current === $pages);
-                echo $link($pages, '<i class="ti ti-chevrons-right"></i>', $current === $pages);
-                echo '</ul></div>';
+                $vars['pager'][] = $link(min($pages, $current + 1), ['icon' => 'ti-chevron-right', 'title' => $t('Next page'), 'disabled' => $current === $pages]);
+                $vars['pager'][] = $link($pages, ['icon' => 'ti-chevrons-right', 'title' => $t('Last page'), 'disabled' => $current === $pages]);
             }
         }
-        echo '</div>'; // card
     }
 }
 
-echo '</div>';
-
+Html::header('OmniSearch', '', 'tools', 'omnisearch');
+TemplateRenderer::getInstance()->display('@omnisearch/search.html.twig', $vars);
 Html::footer();

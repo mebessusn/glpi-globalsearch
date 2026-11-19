@@ -25,8 +25,11 @@ trait CatalogSearch
      *  fields:  column => match label ("title" = the item's name)
      *  extra:   'ip' / 'mac' (network addresses of the item), 'email' (user emails)
      *  person:  columns that tie the item to a person (for the "Touched by" filter)
-     *  check:   'entity' = class right + entity restriction is enough;
-     *           'item'   = also canViewItem() per item (finer visibility rules)
+     *  check:   'entity' = full Read right + entity restriction is enough. On GLPI 11+
+     *                      assets/software also have "read assigned" / "read owned":
+     *                      GLPI's own visibility criteria go into the query and,
+     *                      without full Read, every item also goes through canViewItem();
+     *           'item'   = always canViewItem() per item (finer visibility rules)
      */
     private static function catalogConfig(): array
     {
@@ -195,6 +198,18 @@ trait CatalogSearch
                 $where[] = ['OR' => $personOr];
             }
             $where = array_merge($where, $this->dateCriteria());
+            // GLPI 11+: "read assigned" / "read owned" profiles may only see their own
+            // assets/software. Apply GLPI's own visibility criteria in SQL...
+            $assignable = interface_exists('Glpi\\Features\\AssignableItemInterface')
+                && is_a($class, 'Glpi\\Features\\AssignableItemInterface', true);
+            if ($assignable) {
+                foreach ($class::getAssignableVisiblityCriteria($table) as $criterion) {
+                    $where[] = $criterion;
+                }
+            }
+            // ...and check each item with canViewItem() unless the user has full Read.
+            $perItem = $cfg['check'] === 'item'
+                || ($assignable && !Session::haveRight($class::$rightname, READ));
             if ($class !== 'User' && function_exists('getEntitiesRestrictCriteria') && $DB->fieldExists($table, 'entities_id')) {
                 $entities = getEntitiesRestrictCriteria($table, '', '', $DB->fieldExists($table, 'is_recursive'));
                 if ($entities !== []) {
@@ -202,16 +217,25 @@ trait CatalogSearch
                 }
             }
 
+            $fetched = 0;
             foreach ($DB->request([
                 'SELECT' => ['id', 'date_mod', 'date_creation'],
                 'FROM'   => $table,
                 'WHERE'  => $where,
                 'LIMIT'  => self::MAX_MATCHES + 1,
             ]) as $row) {
+                if (++$fetched > self::MAX_MATCHES) {
+                    $capped = true; // more candidates than read
+                    break;
+                }
                 $id = (int) $row['id'];
-                if ($cfg['check'] === 'item') {
-                    $item = new $class();
-                    if (!$item->getFromDB($id) || !$item->canViewItem()) {
+                if ($perItem) {
+                    $ok = $this->canSee($class, $id);
+                    if ($ok === null) {
+                        $capped = true;
+                        break 2;
+                    }
+                    if (!$ok) {
                         continue;
                     }
                 }

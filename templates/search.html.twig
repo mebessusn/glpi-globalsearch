@@ -1,0 +1,172 @@
+{#
+ # OmniSearch results page.
+ # Everything is auto-escaped. The only values printed with |raw are HTML built by
+ # Searcher::highlight() (which escapes the text itself), GLPI's own status icon,
+ # the User dropdown and script block that GLPI generates.
+ #}
+{% set d = 'omnisearch' %}
+<div class="container-fluid omnisearch-results">
+
+   <form method="get" action="{{ base }}" class="mb-3" id="omnisearch-form">
+      {% if filters.type is not empty %}
+         <input type="hidden" name="type" value="{{ filters.type }}">
+      {% endif %}
+      <div class="input-group">
+         <input type="search" name="q" class="form-control" autofocus value="{{ query }}"
+                placeholder="{{ __('Search tickets, the knowledge base, assets (name, serial, IP, MAC), users, software, documents, projects', d) }}">
+         <button type="submit" class="btn btn-primary" title="{{ __('Search') }}"><i class="ti ti-search"></i></button>
+      </div>
+      <div class="text-muted mt-1 mb-2" style="font-size: .85em">
+         {{ __('Every word must appear. Hostnames like web-01.corp.local are matched as-is.', d) }}
+      </div>
+
+      <div class="row g-2 align-items-end omnisearch-filters">
+         {% for select in selects %}
+            <div class="col-6 col-md-4 col-xl-2">
+               <label class="form-label mb-1 text-muted" for="os-{{ select.name }}">{{ select.label }}</label>
+               <select name="{{ select.name }}" id="os-{{ select.name }}" class="form-select form-select-sm gs-autosubmit">
+                  {% for value, label in select.options %}
+                     <option value="{{ value }}" {{ value ~ '' == select.current ~ '' ? 'selected' : '' }}>{{ label }}</option>
+                  {% endfor %}
+               </select>
+            </div>
+            {% if select.name == 'period' %}
+               {% for date in ['from', 'to'] %}
+                  <div class="col-6 col-md-4 col-xl-2 gs-custom {{ filters.period == 'custom' ? '' : 'd-none' }}">
+                     <label class="form-label mb-1 text-muted" for="os-{{ date }}">{{ date == 'from' ? __('From', d) : __('To', d) }}</label>
+                     <input type="date" name="{{ date }}" id="os-{{ date }}" class="form-control form-control-sm" value="{{ attribute(filters, date) }}">
+                  </div>
+               {% endfor %}
+            {% endif %}
+         {% endfor %}
+         <div class="col-6 col-md-8 col-xl-4">
+            <label class="form-label mb-1 text-muted">{{ __('Touched by (person)', d) }}</label>
+            {{ person_dropdown|raw }}
+         </div>
+         <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">{{ __('Apply', d) }}</button>
+            <a class="btn btn-sm btn-link" href="{{ reset_url }}">{{ __('Reset filters', d) }}</a>
+         </div>
+      </div>
+   </form>
+   {{ script|raw }}
+
+   {% if person %}
+      <div class="mb-3">
+         <span class="badge bg-azure-lt fs-5 p-2">
+            <i class="ti ti-user me-1"></i>{{ __('Touched by %s', d)|format(person.label) }}
+            <a class="ms-2" href="{{ person.remove_url }}" title="{{ __('Remove', d) }}"><i class="ti ti-x"></i></a>
+         </span>
+         <span class="text-muted ms-2">{{ __('Requester, observer or assigned; opened or last updated it; wrote a followup, task or solution.', d) }}</span>
+      </div>
+   {% elseif people is not empty %}
+      <div class="mb-3">
+         <span class="text-muted me-2"><i class="ti ti-users me-1"></i>{{ __('People:', d) }}</span>
+         {% for p in people %}
+            <a class="btn btn-sm btn-outline-secondary me-1 mb-1" href="{{ p.url }}" title="{{ __('Show everything this person touched', d) }}">
+               <i class="ti ti-user me-1"></i>{{ p.label }}
+            </a>
+         {% endfor %}
+      </div>
+   {% endif %}
+
+   {% if state == 'short' %}
+      <div class="alert alert-info">{{ __('Type at least 2 characters.', d) }}</div>
+   {% elseif state == 'noaccess' %}
+      <div class="alert alert-warning">{{ __('You do not have access to any searchable item.', d) }}</div>
+   {% elseif state == 'noresults' %}
+      <div class="alert alert-warning">{{ __('No results. Try fewer words or loosen the filters.', d) }}</div>
+   {% elseif state == 'results' %}
+      <div class="card">
+         <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs">
+               {% for tab in tabs %}
+                  <li class="nav-item">
+                     <a class="nav-link {{ tab.active ? 'active' : '' }}" href="{{ tab.url }}">
+                        {{ tab.label }}
+                        {% if tab.capped and tab.count == 0 %}
+                           <span class="badge bg-secondary text-white ms-1" title="{{ __('Not fully counted yet: open the tab to count it', d) }}">…</span>
+                        {% else %}
+                           <span class="badge {{ tab.count > 0 ? 'bg-secondary text-white' : 'bg-secondary-lt' }} ms-1">{{ tab.count }}{{ tab.capped ? '+' : '' }}</span>
+                        {% endif %}
+                     </a>
+                  </li>
+               {% endfor %}
+            </ul>
+         </div>
+
+         {% if note %}
+            <div class="card-body text-muted">{{ note }}</div>
+         {% else %}
+            <div class="card-body py-2 text-muted border-bottom">
+               {{ __('Showing %1$d–%2$d of %3$d', d)|format(showing.from, showing.to, showing.total) }}
+            </div>
+            {% if capped_notice %}
+               <div class="alert alert-info m-2 mb-0">
+                  {{ __('More than %1$d matches: only the first %2$d are listed. Add words or filters to narrow it down.', d)|format(max_matches, max_matches) }}
+               </div>
+            {% endif %}
+
+            <div class="list-group list-group-flush">
+               {% for r in rows %}
+                  <a class="list-group-item list-group-item-action" href="{{ r.url }}">
+                     <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                           {% if r.typename %}
+                              <span class="badge bg-secondary-lt text-nowrap">
+                                 {% if r.icon %}<i class="{{ r.icon }} me-1"></i>{% endif %}{{ r.typename }}
+                              </span>
+                           {% endif %}
+                           {% if r.status_icon is not null %}
+                              <span class="gs-status text-nowrap">{{ r.status_icon|raw }}<span class="gs-status-label">{{ r.status_label }}</span></span>
+                           {% endif %}
+                           <strong>{{ r.title_html|raw }}</strong>
+                           {% for badge in r.badges %}
+                              <span class="badge bg-warning-lt">{{ badge }}</span>
+                           {% endfor %}
+                        </div>
+                        <div class="text-muted text-nowrap text-end" style="font-size: .8em">
+                           {{ __('Updated', d) }} {{ r.date }}
+                           {% if r.opened %}<br>{{ __('Opened', d) }} {{ r.opened }}{% endif %}
+                        </div>
+                     </div>
+                     {% if r.matched is not empty %}
+                        <div class="mt-1">
+                           {% for m in r.matched %}<span class="badge bg-blue-lt me-1">{{ m }}</span>{% endfor %}
+                        </div>
+                     {% endif %}
+                     {% if r.details is not empty %}
+                        <div class="mt-1 d-flex flex-wrap gap-3" style="font-size: .875em">
+                           {% for detail in r.details %}
+                              <span class="text-nowrap"><span class="text-muted">{{ detail.label }}:</span> {{ detail.html|raw }}</span>
+                           {% endfor %}
+                        </div>
+                     {% endif %}
+                     {% if r.snippet_html %}
+                        <div class="text-muted mt-1" style="font-size: .875em">{{ r.snippet_html|raw }}</div>
+                     {% endif %}
+                  </a>
+               {% endfor %}
+            </div>
+
+            {% if pager is not empty %}
+               <div class="card-footer d-flex justify-content-center">
+                  <ul class="pagination m-0">
+                     {% for p in pager %}
+                        {% if p.ellipsis %}
+                           <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% else %}
+                           <li class="page-item {{ p.disabled ? 'disabled' : '' }} {{ p.active ? 'active' : '' }}">
+                              <a class="page-link" href="{{ p.disabled ? '#' : p.url }}" {% if p.title %}title="{{ p.title }}"{% endif %}>
+                                 {% if p.icon %}<i class="ti {{ p.icon }}"></i>{% else %}{{ p.label }}{% endif %}
+                              </a>
+                           </li>
+                        {% endif %}
+                     {% endfor %}
+                  </ul>
+               </div>
+            {% endif %}
+         {% endif %}
+      </div>
+   {% endif %}
+</div>
