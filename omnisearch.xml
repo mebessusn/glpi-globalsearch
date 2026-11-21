@@ -6,6 +6,7 @@
    <description>
       <short>
          <en>One search box for everything: tickets, problems, changes (incl. followups and tasks), knowledge base, assets (serial, IP, MAC), users, software, documents and projects. Filters, status icons, search by person, pagination.</en>
+         <ja>1つの検索ボックスですべてを――チケット、問題、変更（フォローとタスクを含む）、ナレッジベース、情報資産（シリアル番号、IP アドレス、MAC アドレス）、ユーザー、ソフトウェア、文書とプロジェクト。フィルター、状態アイコン、人物での検索、ページ分け</ja>
       </short>
       <long>
          <en>
@@ -28,6 +29,25 @@ Features:
 
 Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
          </en>
+         <ja>
+GLPI のトップ検索バーを置き換え、次の項目を全文検索します。
+- **チケット、問題、変更** : タイトル、説明、フォローとタスク、任意のステータス（終了を含む）
+- **ナレッジベース** : 記事のタイトルと内容
+- **情報資産**（コンピュータ、ネットワーク機器、プリンタ、電話、モニター、周辺機器）: 名前、シリアル番号、在庫番号、連絡先、コメント、**IP アドレス**と**MAC アドレス**
+- **ユーザー** : ログイン、名前、メール、電話、管理番号
+- **ソフトウェア、文書、プロジェクト**
+
+機能:
+
+- 結果は種別ごとにタブで表示し、件数、各チケットの GLPI の色分け状態アイコン、ハイライトしたスニペットを表示されます。
+- **フィルター** : 状態（対応中、保留、解決、終了）、最終更新日（プリセットまたは日付範囲）、単語が見つかった場所、並べ替え、ページサイズ。
+- **関係者** : 人を選択して、依頼者、関係者、担当者として関わったすべてのチケット、更新したチケット、フォロー、タスク、解決を書いたチケット（およびその情報資産、ソフトウェア、文書、プロジェクト）を一覧表示します。
+- **ページ分け** : すべての結果にアクセスできます。
+- **GLPI の権限を尊重** : エンティティー、「すべて、自分のグループ、自分自身」の権限、非公開フォローとタスク、ナレッジベースの対象。
+- 外部へのリクエストなし : 独立したサーバー上で動作します。
+
+同じパッケージで GLPI 10.0、11.0、12.0 上で動作します。PHP 8.1 以降が必要。
+         </ja>
       </long>
    </description>
    <homepage>https://github.com/mebessusn/glpi-omnisearch</homepage>
@@ -56,6 +76,13 @@ Works on GLPI 10.0, 11.0 and 12.0 from one package. Requires PHP 8.1+.
          <tag>assets</tag>
          <tag>knowledge base</tag>
       </en>
+      <ja>
+         <tag>検索</tag>
+         <tag>全体検索</tag>
+         <tag>チケット</tag>
+         <tag>情報資産</tag>
+         <tag>ナレッジベース</tag>
+      </ja>
    </tags>
    <screenshots>
       <screenshot>https://raw.githubusercontent.com/mebessusn/glpi-omnisearch/main/screenshots/tickets.png</screenshot>
